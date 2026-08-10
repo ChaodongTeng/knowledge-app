@@ -13,7 +13,7 @@ export default function BaseView() {
   const nav = useNavigate()
   const [base, setBase] = useState(null)
   const [points, setPoints] = useState([])
-  const [inputMode, setInputMode] = useState('text') // text | voice | image | link
+  const [inputMode, setInputMode] = useState('text')
   const [textDraft, setTextDraft] = useState('')
   const [linkDraft, setLinkDraft] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -21,7 +21,11 @@ export default function BaseView() {
   const [suggestions, setSuggestions] = useState([])
   const [editingPoint, setEditingPoint] = useState(null)
   const [filterCat, setFilterCat] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
   const fileRef = useRef()
+  const dropZoneRef = useRef()
 
   useEffect(() => {
     (async () => {
@@ -33,7 +37,48 @@ export default function BaseView() {
     })()
   }, [id])
 
-  // ---- 随手记：保存原始输入 ----
+  function handleImageSelect(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = e => setImagePreview(e.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleImageSelect(file)
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    function handlePaste(e) {
+      if (inputMode !== 'image') return
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) handleImageSelect(file)
+          break
+        }
+      }
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [inputMode])
+
   async function submitInput() {
     if (!isConfigured) return alert('请先配置 Supabase')
     try {
@@ -46,19 +91,19 @@ export default function BaseView() {
         await createRawInput({ base_id: id, input_type: 'link', raw_content: linkDraft })
         setLinkDraft('')
       } else if (inputMode === 'image') {
-        const f = fileRef.current?.files?.[0]
-        if (!f) return alert('先选一张图')
-        const url = await uploadMedia(f)
+        if (!imageFile) return alert('先选一张图（点击选择、拖拽、或粘贴）')
+        const url = await uploadMedia(imageFile)
         await createRawInput({ base_id: id, input_type: 'image', media_url: url, raw_content: '(图片)' })
-        fileRef.current.value = ''
+        setImageFile(null)
+        setImagePreview(null)
+        if (fileRef.current) fileRef.current.value = ''
       } else if (inputMode === 'voice') {
-        alert('语音录制在 MVP 先用文字替代（后续版本支持）。你可以先用文字记录想法。')
+        alert('语音录制在 MVP 先用文字替代')
       }
       await refresh()
     } catch (e) { alert('保存失败：' + e.message) }
   }
 
-  // ---- 处理所有未处理的原始输入：AI 归纳 ----
   async function processPending() {
     if (!aiConfigured) return alert('请先配置 DeepSeek Key')
     setProcessing(true)
@@ -85,7 +130,6 @@ export default function BaseView() {
     setProcessing(false)
   }
 
-  // ---- AI 建议缺失知识点 ----
   async function fetchSuggestions() {
     if (!aiConfigured) return alert('请先配置 DeepSeek Key')
     setShowSuggest(true)
@@ -112,7 +156,6 @@ export default function BaseView() {
 
   async function refresh() { setPoints(await listPoints(id)) }
 
-  // ---- 按 category 分组 ----
   const categories = React.useMemo(() => {
     const map = new Map()
     for (const p of points) {
@@ -124,8 +167,6 @@ export default function BaseView() {
   }, [points])
 
   if (!base) return <div className="loading">加载中…</div>
-
-  const pendingCount = 0 // we don't track here, just show process button
 
   return (
     <div className="base-view">
@@ -143,7 +184,6 @@ export default function BaseView() {
         </div>
       </div>
 
-      {/* 随手记输入区 */}
       <div className="input-zone">
         <div className="input-mode-tabs">
           {['text', 'link', 'image', 'voice'].map(m => (
@@ -165,13 +205,51 @@ export default function BaseView() {
             <input value={linkDraft} onChange={e => setLinkDraft(e.target.value)}
               placeholder="贴个链接（文章/视频/课程）…" />
           )}
-          {inputMode === 'image' && <input type="file" ref={fileRef} accept="image/*" />}
+          {inputMode === 'image' && (
+            <div
+              ref={dropZoneRef}
+              className={`drop-zone ${isDragging ? 'dragging' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileRef.current?.click()}
+            >
+              {imagePreview ? (
+                <div className="image-preview">
+                  <img src={imagePreview} alt="预览" />
+                  <button className="remove-image" onClick={(e) => {
+                    e.stopPropagation()
+                    setImageFile(null)
+                    setImagePreview(null)
+                    if (fileRef.current) fileRef.current.value = ''
+                  }}>✕</button>
+                </div>
+              ) : (
+                <div className="drop-zone-content">
+                  <div className="drop-icon">🖼️</div>
+                  <div className="drop-text">
+                    <strong>点击选择</strong>、<strong>拖拽图片到这里</strong>、或<strong>直接粘贴</strong>（Ctrl/Cmd+V）
+                  </div>
+                  <div className="drop-hint">支持 JPG、PNG、GIF、WebP</div>
+                </div>
+              )}
+              <input
+                type="file"
+                ref={fileRef}
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0]
+                  if (file) handleImageSelect(file)
+                }}
+              />
+            </div>
+          )}
           {inputMode === 'voice' && <div className="voice-hint">🎙️ 语音录制在下一版本支持。当前可用手机自带语音输入法转文字后选"✍️ 文字"输入。</div>}
           <button className="primary" onClick={submitInput}>💾 保存原始素材</button>
         </div>
       </div>
 
-      {/* 操作按钮 */}
       <div className="action-bar">
         <button className="action-btn" onClick={processPending} disabled={processing}>
           {processing ? '⏳ AI 处理中…' : '🪄 让 AI 归纳未处理的笔记'}
@@ -183,7 +261,6 @@ export default function BaseView() {
         )}
       </div>
 
-      {/* AI 建议 */}
       {showSuggest && (
         <div className="suggest-box">
           <div className="suggest-head">
@@ -206,7 +283,6 @@ export default function BaseView() {
         </div>
       )}
 
-      {/* 知识点列表（按分类） */}
       {points.length > 0 && (
         <div className="point-list">
           <div className="cat-filter">
@@ -248,7 +324,6 @@ export default function BaseView() {
         </div>
       )}
 
-      {/* 编辑弹窗 */}
       {editingPoint && (
         <div className="modal-mask" onClick={() => setEditingPoint(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
