@@ -1,4 +1,29 @@
-# 🧠 知识库 · 我的第二大脑
+
+
+
+
+
+
+
+
+# 个人知识库 App
+
+一个 AI 驱动的个人知识管理系统。
+
+## 技术栈
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS
+- Supabase (PostgreSQL)
+- DeepSeek API
+- Netlify（自动部署）
+- PWA（可安装到手机/桌面）
+
+## 本地开发
+
+```bash
+npm install  
+npm run dev # 🧠 知识库 · 我的第二大脑
 
 个人技能学习与知识沉淀系统 —— 一个完全自持的 PWA 应用。
 
