@@ -37,8 +37,20 @@ export async function listPoints(baseId) {
 }
 
 export async function createPoint(point) {
+  // 支持新字段：parent_category, difficulty, prerequisites
+  const row = {
+    base_id: point.base_id,
+    title: point.title,
+    content: point.content,
+    category: point.category || '',
+    tags: point.tags || [],
+    status: point.status || 'active',
+    parent_category: point.parent_category || '',
+    difficulty: point.difficulty || 'intermediate',
+    prerequisites: point.prerequisites || []
+  }
   const { data, error } = await supabase
-    .from('knowledge_points').insert(point).select().single()
+    .from('knowledge_points').insert(row).select().single()
   if (error) throw error
   return data
 }

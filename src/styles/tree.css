@@ -1,0 +1,153 @@
+/* 知识树视图样式 */
+
+.view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.view-toggle button {
+  padding: 8px 16px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.view-toggle button:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.view-toggle button.active {
+  border-color: #667eea;
+  background: #667eea;
+  color: white;
+}
+
+.knowledge-tree {
+  margin-top: 20px;
+}
+
+.tree-title {
+  font-size: 24px;
+  margin-bottom: 24px;
+  color: #333;
+}
+
+.tree-parent {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  border-radius: 12px;
+  border: 2px solid #e8ecf4;
+}
+
+.parent-category {
+  font-size: 20px;
+  color: #667eea;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e8ecf4;
+}
+
+.tree-child {
+  margin-left: 16px;
+  margin-bottom: 20px;
+}
+
+.child-category {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.tree-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tree-point {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tree-point .point-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.difficulty-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.difficulty-badge.beginner {
+  background: #d4edda;
+  color: #155724;
+}
+
+.difficulty-badge.intermediate {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.difficulty-badge.advanced {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.prerequisites {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.prereq-label {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.prereq-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px 4px 2px 0;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .knowledge-tree {
+    padding: 0 8px;
+  }
+  
+  .tree-parent {
+    padding: 16px;
+  }
+  
+  .parent-category {
+    font-size: 18px;
+  }
+  
+  .child-category {
+    font-size: 15px;
+  }
+}
