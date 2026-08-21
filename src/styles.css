@@ -188,27 +188,44 @@ body {
   line-height: 1.5;
 }
 
-.base-card-del {
+.base-card-actions {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.base-card-edit,
+.base-card-del {
   background: #f0f0f0;
   border: none;
   width: 28px;
   height: 28px;
   border-radius: 50%;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
+  padding: 0;
 }
 
-.base-card:hover .base-card-del {
+.base-card:hover .base-card-actions,
+.base-card:focus-within .base-card-actions {
   opacity: 1;
+}
+
+.base-card-edit:hover {
+  background: #667eea;
+  color: white;
 }
 
 .base-card-del:hover {
   background: #ff4757;
   color: white;
+}
+
+@media (hover: none) {
+  .base-card-actions { opacity: 1; }
 }
 
 .empty {

@@ -5,7 +5,40 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const isConfigured = Boolean(url && key && !url.includes('你的'))
 
-export const supabase = isConfigured ? createClient(url, key) : null
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+// Supabase 在部分网络环境下偶尔会出现瞬时连接失败。
+// 对网络错误和 5xx 自动重试两次，避免一次抖动就让用户操作失败。
+async function fetchWithRetry(input, init, maxRetries = 2) {
+  let lastError
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      const response = await fetch(input, init)
+      if (response.status < 500 || attempt === maxRetries) return response
+      lastError = new Error(`服务暂时不可用（HTTP ${response.status}）`)
+    } catch (error) {
+      lastError = error
+      if (attempt === maxRetries) break
+    }
+    await sleep(600 * (attempt + 1))
+  }
+  throw lastError
+}
+
+export const supabase = isConfigured
+  ? createClient(url, key, { global: { fetch: fetchWithRetry } })
+  : null
+
+export function readableSupabaseError(error, action = '操作') {
+  const message = error?.message || String(error || '未知错误')
+  if (/failed to fetch|networkerror|load failed/i.test(message)) {
+    return `${action}失败：无法连接 Supabase。已自动重试，仍未成功。请检查当前网络后再试；你的现有数据不会因此被删除。`
+  }
+  if (/jwt|api key|unauthorized|invalid.*key/i.test(message)) {
+    return `${action}失败：Supabase 密钥无效，请检查 GitHub Secrets 中的 VITE_SUPABASE_ANON_KEY。`
+  }
+  return `${action}失败：${message}`
+}
 
 // ---------- 知识库 ----------
 export async function listBases() {
@@ -18,6 +51,17 @@ export async function listBases() {
 export async function createBase({ name, description, icon }) {
   const { data, error } = await supabase
     .from('knowledge_bases').insert({ name, description, icon }).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateBase(id, patch) {
+  const row = {
+    ...patch,
+    updated_at: new Date().toISOString()
+  }
+  const { data, error } = await supabase
+    .from('knowledge_bases').update(row).eq('id', id).select().single()
   if (error) throw error
   return data
 }

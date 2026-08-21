@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isConfigured, listBases, createBase, deleteBase } from '../lib/supabase'
+import {
+  isConfigured, listBases, createBase, updateBase, deleteBase,
+  readableSupabaseError
+} from '../lib/supabase'
 import { aiConfigured, generateLearningPath } from '../lib/ai'
 
 const EMOJIS = ['📚', '🎯', '💡', '🧪', '🎨', '🔬', '📐', '🌱', '🏗️', '🔑', '🧬', '🎓']
@@ -9,6 +12,7 @@ export default function Home() {
   const [bases, setBases] = useState([])
   const [showNew, setShowNew] = useState(false)
   const [showLearn, setShowLearn] = useState(false)
+  const [editingBase, setEditingBase] = useState(null)
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
   const [icon, setIcon] = useState('📚')
@@ -19,8 +23,12 @@ export default function Home() {
   useEffect(() => { if (isConfigured) load() }, [])
 
   async function load() {
-    const data = await listBases()
-    setBases(data)
+    try {
+      const data = await listBases()
+      setBases(data)
+    } catch (e) {
+      alert(readableSupabaseError(e, '加载知识库'))
+    }
   }
 
   async function handleCreate() {
@@ -30,7 +38,7 @@ export default function Home() {
       await createBase({ name: name.trim(), description: desc.trim(), icon })
       setShowNew(false); setName(''); setDesc(''); setIcon('📚')
       await load()
-    } catch (e) { alert('创建失败：' + e.message) }
+    } catch (e) { alert(readableSupabaseError(e, '创建知识库')) }
     setLoading(false)
   }
 
@@ -67,8 +75,35 @@ export default function Home() {
   async function handleDelete(id, e) {
     e.stopPropagation()
     if (!confirm('确认删除此知识库及其所有知识点？')) return
-    await deleteBase(id)
-    await load()
+    try {
+      await deleteBase(id)
+      await load()
+    } catch (error) {
+      alert(readableSupabaseError(error, '删除知识库'))
+    }
+  }
+
+  function startRename(base, e) {
+    e.stopPropagation()
+    setEditingBase({ ...base })
+  }
+
+  async function handleRename() {
+    if (!editingBase?.name?.trim()) return
+    setLoading(true)
+    try {
+      await updateBase(editingBase.id, {
+        name: editingBase.name.trim(),
+        description: (editingBase.description || '').trim(),
+        icon: editingBase.icon || '📚'
+      })
+      setEditingBase(null)
+      await load()
+    } catch (error) {
+      alert(readableSupabaseError(error, '重命名知识库'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -97,7 +132,10 @@ export default function Home() {
             <div className="base-card-icon">{b.icon}</div>
             <div className="base-card-name">{b.name}</div>
             {b.description && <div className="base-card-desc">{b.description}</div>}
-            <button className="base-card-del" onClick={(e) => handleDelete(b.id, e)}>✕</button>
+            <div className="base-card-actions">
+              <button className="base-card-edit" title="重命名知识库" onClick={(e) => startRename(b, e)}>✏️</button>
+              <button className="base-card-del" title="删除知识库" onClick={(e) => handleDelete(b.id, e)}>✕</button>
+            </div>
           </div>
         ))}
       </div>
@@ -106,6 +144,37 @@ export default function Home() {
         <div className="empty">
           <div className="empty-icon">🌱</div>
           <div>点击上方按钮，开始你的第一个知识库</div>
+        </div>
+      )}
+
+      {/* 重命名知识库弹窗 */}
+      {editingBase && (
+        <div className="modal-mask" onClick={() => setEditingBase(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>编辑知识库</h2>
+            <label>图标</label>
+            <div className="emoji-row">
+              {EMOJIS.map(e => (
+                <span key={e} className={`emoji ${e === editingBase.icon ? 'active' : ''}`}
+                  onClick={() => setEditingBase({ ...editingBase, icon: e })}>{e}</span>
+              ))}
+            </div>
+            <label>名称 *</label>
+            <input value={editingBase.name || ''}
+              onChange={e => setEditingBase({ ...editingBase, name: e.target.value })}
+              autoFocus />
+            <label>描述（可选）</label>
+            <textarea value={editingBase.description || ''}
+              onChange={e => setEditingBase({ ...editingBase, description: e.target.value })}
+              rows={2} />
+            <div className="modal-actions">
+              <button onClick={() => setEditingBase(null)}>取消</button>
+              <button className="primary" onClick={handleRename}
+                disabled={loading || !editingBase.name?.trim()}>
+                {loading ? '保存中…' : '保存修改'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
