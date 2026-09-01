@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  isConfigured,
-  supabase,
   listBases, listPoints, createPoint, updatePoint, deletePoint,
-  createRawInput, uploadMedia
-} from '../lib/supabase'
+  createRawInput, uploadMedia, listRawInputs, updateRawInput
+} from '../lib/db'
 import { aiConfigured, buildKnowledgeTree, suggestMissingPoints, reorganizeKnowledgeTree, expandPoint } from '../lib/ai'
 
 export default function BaseView() {
@@ -91,7 +89,6 @@ export default function BaseView() {
   }, [inputMode])
 
   async function submitInput() {
-    if (!isConfigured) return alert('请先配置 Supabase')
     try {
       if (inputMode === 'text') {
         if (!textDraft.trim() && !textImageFile) return
@@ -132,9 +129,8 @@ export default function BaseView() {
     if (!aiConfigured) return alert('请先配置 DeepSeek Key')
     setProcessing(true)
     try {
-      const { data: raws } = await supabase.from('raw_inputs')
-        .select('*').eq('base_id', id).eq('processed', false).order('created_at')
-      if (!raws || raws.length === 0) { alert('暂无待处理的笔记'); setProcessing(false); return }
+      const raws = await listRawInputs(id, false)
+      if (raws.length === 0) { alert('暂无待处理的笔记'); setProcessing(false); return }
       const existingPoints = points.map(p => ({ id: p.id, title: p.title, category: p.category }))
       const treeResult = await buildKnowledgeTree(base.name, raws.map(r => ({ id: r.id, raw_content: r.raw_content, input_type: r.input_type })), existingPoints)
       for (const point of treeResult.newPoints) {
@@ -144,7 +140,7 @@ export default function BaseView() {
           tags: point.tags || [], prerequisites: point.prerequisites || [], status: 'active'
         })
       }
-      for (const r of raws) { await supabase.from('raw_inputs').update({ processed: true }).eq('id', r.id) }
+      for (const r of raws) { await updateRawInput(r.id, { processed: true }) }
       await refresh()
       alert(`✅ 已为你生成 ${treeResult.newPoints.length} 个知识点\n💡 ${treeResult.treeInsight || ''}`)
     } catch (e) { alert('AI 归纳失败：' + e.message) }

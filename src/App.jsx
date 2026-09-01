@@ -1,20 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { Routes, Route, useNavigate } from 'react-router-dom'
-import { isConfigured, listBases, exportAll } from './lib/supabase'
+import { exportAll, importAll } from './lib/db'
 import { aiConfigured } from './lib/ai'
 import Home from './pages/Home.jsx'
 import BaseView from './pages/BaseView.jsx'
 
 function ConfigBanner() {
-  const db = isConfigured, ai = aiConfigured
-  if (db && ai) return null
   return (
     <div className="banner">
-      <div className="banner-title">⚙️ 首次配置</div>
-      {!db && <div className="banner-item">❌ Supabase 未配置：把 .env.example 复制成 .env.local 并填入 Supabase URL / anon key</div>}
-      {db && <div className="banner-item">✅ Supabase 已连接</div>}
-      {!ai && <div className="banner-item">⚠️ DeepSeek 未配置：AI 归纳/补全功能不可用（手动笔记仍可用）。在 .env.local 填入 VITE_DEEPSEEK_API_KEY</div>}
-      {ai && <div className="banner-item">✅ AI 已连接</div>}
+      <div className="banner-item">💾 数据存在你自己的浏览器里（本地优先，离线可用，终身归属你）。换设备请用右上角 ⬇️ 导出 / ⬆️ 导入 迁移。</div>
+      {!aiConfigured && <div className="banner-item">⚠️ DeepSeek 未配置：AI 归纳/补全功能不可用（手动笔记仍可用）</div>}
     </div>
   )
 }
@@ -22,7 +17,6 @@ function ConfigBanner() {
 function ExportBtn() {
   const [running, setRunning] = useState(false)
   async function doExport() {
-    if (!isConfigured) return alert('请先配置 Supabase')
     setRunning(true)
     try {
       const data = await exportAll()
@@ -42,6 +36,34 @@ function ExportBtn() {
   return <button className="icon-btn" onClick={doExport} disabled={running}>{running ? '导出中…' : '⬇️ 导出'}</button>
 }
 
+function ImportBtn() {
+  const fileRef = useRef()
+  const [running, setRunning] = useState(false)
+  async function onFile(e) {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    setRunning(true)
+    try {
+      const data = JSON.parse(await file.text())
+      if (!data || typeof data !== 'object') throw new Error('文件格式不对')
+      const counts = await importAll(data)
+      alert(`✅ 导入完成：知识库 ${counts.bases} 个、知识点 ${counts.points} 个、素材 ${counts.raws} 条`)
+      window.location.reload()
+    } catch (err) {
+      alert('导入失败：' + err.message)
+    } finally {
+      setRunning(false)
+    }
+  }
+  return (
+    <>
+      <button className="icon-btn" onClick={() => fileRef.current?.click()} disabled={running}>{running ? '导入中…' : '⬆️ 导入'}</button>
+      <input type="file" ref={fileRef} accept="application/json,.json" style={{ display: 'none' }} onChange={onFile} />
+    </>
+  )
+}
+
 function TopBar({ onHome }) {
   return (
     <div className="topbar">
@@ -50,6 +72,7 @@ function TopBar({ onHome }) {
         <span className="brand">知识库</span>
       </div>
       <div className="topbar-right">
+        <ImportBtn />
         <ExportBtn />
       </div>
     </div>

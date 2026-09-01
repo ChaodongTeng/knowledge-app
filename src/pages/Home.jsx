@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  isConfigured, listBases, createBase, updateBase, deleteBase,
-  readableSupabaseError
-} from '../lib/supabase'
+  listBases, createBase, updateBase, deleteBase, createPoint, readableError
+} from '../lib/db'
 import { aiConfigured, generateLearningPath } from '../lib/ai'
 
 const EMOJIS = ['📚', '🎯', '💡', '🧪', '🎨', '🔬', '📐', '🌱', '🏗️', '🔑', '🧬', '🎓']
@@ -20,14 +19,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const nav = useNavigate()
 
-  useEffect(() => { if (isConfigured) load() }, [])
+  useEffect(() => { load() }, [])
 
   async function load() {
     try {
       const data = await listBases()
       setBases(data)
     } catch (e) {
-      alert(readableSupabaseError(e, '加载知识库'))
+      alert(readableError(e, '加载知识库'))
     }
   }
 
@@ -38,7 +37,7 @@ export default function Home() {
       await createBase({ name: name.trim(), description: desc.trim(), icon })
       setShowNew(false); setName(''); setDesc(''); setIcon('📚')
       await load()
-    } catch (e) { alert(readableSupabaseError(e, '创建知识库')) }
+    } catch (e) { alert(readableError(e, '创建知识库')) }
     setLoading(false)
   }
 
@@ -54,8 +53,7 @@ export default function Home() {
       })
       // 依次创建知识点
       for (const p of result.points || []) {
-        const { supabase } = await import('../lib/supabase')
-        await supabase.from('knowledge_points').insert({
+        await createPoint({
           base_id: base.id,
           title: p.title,
           content: p.content,
@@ -79,7 +77,7 @@ export default function Home() {
       await deleteBase(id)
       await load()
     } catch (error) {
-      alert(readableSupabaseError(error, '删除知识库'))
+      alert(readableError(error, '删除知识库'))
     }
   }
 
@@ -100,7 +98,7 @@ export default function Home() {
       setEditingBase(null)
       await load()
     } catch (error) {
-      alert(readableSupabaseError(error, '重命名知识库'))
+      alert(readableError(error, '重命名知识库'))
     } finally {
       setLoading(false)
     }
