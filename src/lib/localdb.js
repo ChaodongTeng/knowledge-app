@@ -19,11 +19,17 @@ function open() {
   return dbPromise
 }
 
+let onChange = null
+export function setOnChange(fn) { onChange = fn }
+
 function run(store, mode, fn) {
   return open().then(db => new Promise((resolve, reject) => {
     const t = db.transaction(store, mode)
     const req = fn(t.objectStore(store))
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      if (mode === 'readwrite' && onChange) onChange()
+      resolve(req.result)
+    }
     req.onerror = () => reject(req.error)
   }))
 }

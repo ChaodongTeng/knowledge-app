@@ -1,5 +1,9 @@
 // 数据层 —— 本地优先（IndexedDB）。数据完全属于你，离线可用，不依赖任何云。
-import { all, get, put, del } from './localdb'
+import { all, get, put, del, setOnChange } from './localdb'
+import { scheduleSync } from './gitsync'
+
+// 本地数据每次写入后，自动触发云端同步
+setOnChange(() => scheduleSync(exportAll))
 
 export const isConfigured = true
 
